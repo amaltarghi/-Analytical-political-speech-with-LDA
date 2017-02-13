@@ -6,6 +6,8 @@
 
 var LDAvis = function(to_select, data_or_file_name) {
 
+
+
     // This section sets up the logic for event handling
     var current_clicked = {
         what: "nothing",
@@ -78,6 +80,7 @@ var LDAvis = function(to_select, data_or_file_name) {
     var topicDown = topicID + "-down";
     var topicUp = topicID + "-up";
     var topicClear = topicID + "-clear";
+    var topicMerge = topicID + "-merge";
 
     var leftPanelID = visID + "-leftpanel";
     var barFreqsID = visID + "-bar-freqs";
@@ -101,6 +104,20 @@ var LDAvis = function(to_select, data_or_file_name) {
                 return -1 * decreasing;
             return 0;
         };
+    }
+
+    function loadJSON(url,callback) {   
+
+      var xobj = new XMLHttpRequest();
+      xobj.overrideMimeType("application/json");
+      xobj.open('GET', (url), true); // Replace 'my_data' with the path to your file
+      xobj.onreadystatechange = function () {
+        if (xobj.readyState == 4 && xobj.status == "200") {
+          // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+          callback(JSON.parse(xobj.responseText));
+        }
+      };
+       xobj.send(null);  
     }
 
 
@@ -153,6 +170,9 @@ var LDAvis = function(to_select, data_or_file_name) {
 
         // When the value of lambda changes, update the visualization
         console.log('lambda_select', lambda_select);
+	var flag_merge = 0;
+        var merge_list = [];
+
         d3.select(lambda_select)
             .on("mouseup", function() {
                 console.log('lambda_select mouseup');
@@ -224,6 +244,24 @@ var LDAvis = function(to_select, data_or_file_name) {
             .on("click", function() {
                 state_reset();
                 state_save(true);
+            });
+
+        d3.select("#" + topicMerge)
+            .on("click", function() {
+		if(flag_merge==0){
+		    console.log('premier click');
+		    flag_merge=1;
+		}else{
+		    //loadJSON("lda.json", function(data2) {
+		    //visualize(data2)}
+		    flag_merge=0;
+		    console.log(merge_list)
+		    merge_list = []
+		    console.log('deuxiem click');
+		    topic_on(document.getElementById(topicID + 5));
+                    topic_on(document.getElementById(topicID + 7));
+                    state_save(true);
+		}		
             });
 
         // create linear scaling to pixels (and add some padding on outer region of scatterplot)
@@ -419,17 +457,26 @@ var LDAvis = function(to_select, data_or_file_name) {
                 topic_on(this);
             })
             .on("click", function(d) {
-                // prevent click event defined on the div container from firing
-                // http://bl.ocks.org/jasondavies/3186840
-                d3.event.stopPropagation();
-                var old_topic = topicID + vis_state.topic;
-                if (vis_state.topic > 0 && old_topic != this.id) {
-                    topic_off(document.getElementById(old_topic));
-                }
-                // make sure topic input box value and fragment reflects clicked selection
-                document.getElementById(topicID).value = vis_state.topic = d.topics;
-                state_save(true);
-                topic_on(this);
+		if(flag_merge==1){
+                    d3.event.stopPropagation();
+		    console.log(this.id.substr(9));
+		    merge_list.push(this.id.substr(9));
+                    document.getElementById(topicID).value = vis_state.topic = d.topics;
+                    state_save(true);
+                    topic_on(this);
+		}else{
+                    // prevent click event defined on the div container from firing
+                    // http://bl.ocks.org/jasondavies/3186840
+                    d3.event.stopPropagation();
+                    var old_topic = topicID + vis_state.topic;
+                    if (vis_state.topic > 0 && old_topic != this.id) {
+                        topic_off(document.getElementById(old_topic));
+                    }
+                    // make sure topic input box value and fragment reflects clicked selection
+                    document.getElementById(topicID).value = vis_state.topic = d.topics;
+                    state_save(true);
+                    topic_on(this);
+		}
             })
             .on("mouseout", function(d) {
                 if (vis_state.topic != d.topics) topic_off(this);
@@ -640,6 +687,13 @@ var LDAvis = function(to_select, data_or_file_name) {
             clear.setAttribute("style", "margin-left: 5px");
             clear.innerHTML = "Clear Topic";
             topicDiv.appendChild(clear);
+
+
+            var merge = document.createElement("button");
+            merge.setAttribute("id", topicMerge);
+            merge.setAttribute("style", "margin-left: 5px");
+            merge.innerHTML = "Merge Topic";
+            topicDiv.appendChild(merge);
 
             // lambda inputs
             //var lambdaDivLeft = 8 + mdswidth + margin.left + termwidth;
@@ -1372,10 +1426,11 @@ var LDAvis = function(to_select, data_or_file_name) {
     }
 
     if (typeof data_or_file_name === 'string')
-        d3.json(data_or_file_name, function(error, data) {visualize(data);});
-    else
+        d3.json(data_or_file_name, function(error, data) {visualize(data);console.log('vis_data');});
+    else{
         visualize(data_or_file_name);
-
+	console.log('file_data');
+    }
     // var current_clicked = {
     //     what: "nothing",
     //     element: undefined
